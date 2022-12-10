@@ -9,7 +9,7 @@ export async function categoryValidation(req, res, next){
 
     if(error){
         const errors = error.details.map(detail => detail.message);
-        return res.status(422).send(errors);
+        return res.status(400).send(errors);
     }
 
     const categoryExist = await connectionDB.query("SELECT name FROM categories WHERE name=$1", [name.name]);
@@ -17,7 +17,6 @@ export async function categoryValidation(req, res, next){
     if (categoryExist.rowCount > 0){ 
         //rowCount é campo dentro do objeto que retorna o numero de registros das intruções do select, no caso, o name
         return res.sendStatus(409);
-        console.log("categoryExist", categoryExist);
     }
 
     next();

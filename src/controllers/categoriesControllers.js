@@ -9,7 +9,7 @@ export async function getCategories (req, res) {
 
     }
     catch (err) {
-        console.log("err getCategories", err);
+        console.log("err getCategories", err.message);
         res.status(500).send('Server not running');
     }
 };
@@ -23,7 +23,7 @@ export async function postCategories (req, res){
         res.send(201);
 
     } catch (err){
-        console.log("err postCategories", err);
+        console.log("err postCategories", err.message);
         res.status(500).send('Server not running');
     }
 };
