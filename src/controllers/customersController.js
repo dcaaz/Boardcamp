@@ -4,8 +4,6 @@ export async function getCustomersCPF(req, res) {
 
     const { cpf } = req.query;
 
-    //VERIFICAR AQUI
-
     try {
         if (cpf) {
 
@@ -32,11 +30,6 @@ export async function getCustomersID(req, res) {
 
     try {
 
-        // INSERT INTO clientes (nome, cpf,
-        //     numero_compras) VALUES ('Renato
-        //     Caldeira Falcão', '46761645912',
-        //     1);
-
         const customerID = await connectionDB.query("SELECT * FROM customers WHERE id=$1", [id]);
 
         if (customerID.rowCount > 0) {
@@ -54,5 +47,19 @@ export async function getCustomersID(req, res) {
 }
 
 export async function postCustomers(req, res) {
+
+    const {name, phone, cpf, birthday} = req.info;
+
+    try{
+
+        await connectionDB.query("INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4)",
+            [name, phone, cpf, birthday]);
+
+        res.sendStatus(201);
+
+    } catch (err){
+        console.log("err postCustomers", err.message);
+        res.status(500).send('Server not running');
+    }
 
 }
