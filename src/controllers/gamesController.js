@@ -6,7 +6,7 @@ export async function getGames(req, res) {
     try {
         //REVISAR ESSA PARTE
         if (name) {
-            const existGame = await connectionDB.query(`SELECT * FROM games WHERE name ILIKE '${name}'`);
+            const existGame = await connectionDB.query(`SELECT * FROM games WHERE name ILIKE '${name}%'`);
 
             if (existGame.rows > 0) {
                 res.send(existGame.rows);
