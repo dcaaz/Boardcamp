@@ -6,22 +6,45 @@ export async function getGames(req, res) {
     try {
         //REVISAR ESSA PARTE
         if (name) {
-            const existGame = await connectionDB.query(`SELECT * FROM games WHERE name ILIKE '${name}%'`);
+            const existGame = await connectionDB.query(`
+            SELECT 
+                games.id, games.name, games.image, games."stockTotal", games."pricePerDay", 
+                categories.name AS "categoryName"
+            FROM 
+                games 
+            JOIN
+                categories
+            ON
+                games."categoryId"=categories.id          
+            WHERE 
+                games.name
+            ILIKE 
+                '${name}%'`
+            );
 
-            if (existGame.rows > 0) {
+            if(existGame.rows[0]){
                 res.send(existGame.rows);
             } else {
                 res.send("Não existe jogo com esse nome")
             }
 
         } else {
-            const allGames = await connectionDB.query("SELECT * FROM games");
-            console.log("allGames", allGames.rows);
+            const allGames = await connectionDB.query(`
+            SELECT 
+                games.id, games.name, games.image, games."stockTotal", games."pricePerDay", 
+                categories.name AS "categoryName"
+            FROM 
+                games 
+            JOIN
+                categories
+            ON
+                games."categoryId"=categories.id`
+            );
             res.send(allGames.rows);
         }
     }
     catch (err) {
-        console.log("err postGames", err.message);
+        console.log("err getGames", err.message);
         res.status(500).send('Server not running');
     }
 };
@@ -29,7 +52,6 @@ export async function getGames(req, res) {
 export async function postGames(req, res) {
     const { name, image, stockTotal, categoryId, pricePerDay } = req.info;
     const info = req.info;
-    console.log("info", info);
 
     try {
 
