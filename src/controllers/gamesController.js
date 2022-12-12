@@ -4,7 +4,7 @@ export async function getGames(req, res) {
     const { name } = req.query;
 
     try {
-        //REVISAR ESSA PARTE
+        
         if (name) {
             const existGame = await connectionDB.query(`
             SELECT 
