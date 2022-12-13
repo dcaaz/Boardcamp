@@ -7,14 +7,13 @@ export async function getCustomersCPF(req, res) {
     try {
         if (cpf) {
 
-            const customerCPF = await connectionDB.query(`SELECT * FROM customers WHERE cpf ILIKE '${cpf}%'`);
+            const customerCPF = await connectionDB.query(`SELECT * FROM customers WHERE cpf ILIKE '${cpf}%;'`);
             console.log("customerCPF", customerCPF);
             res.send(customerCPF.rows);
 
         } else {
 
-            const allCustomers = await connectionDB.query("SELECT * FROM customers");
-            console.log("allCustomers", allCustomers);
+            const allCustomers = await connectionDB.query("SELECT * FROM customers;");
             res.send(allCustomers.rows);
         }
 
@@ -30,10 +29,9 @@ export async function getCustomersID(req, res) {
 
     try {
 
-        const customerID = await connectionDB.query("SELECT * FROM customers WHERE id=$1", [id]);
+        const customerID = await connectionDB.query("SELECT * FROM customers WHERE id=$1;", [id]);
 
         if (customerID.rowCount > 0) {
-            console.log("customerID", customerID);
             return res.send(customerID.rows);
         } else {
             return res.sendStatus(404);
@@ -52,7 +50,7 @@ export async function postCustomers(req, res) {
 
     try{
 
-        await connectionDB.query("INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4)",
+        await connectionDB.query("INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4);",
             [name, phone, cpf, birthday]);
 
         res.sendStatus(201);
