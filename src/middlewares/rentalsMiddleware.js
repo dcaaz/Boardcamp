@@ -4,40 +4,69 @@ import { rentalJoiSchema } from "../models/rentalsJoiModels.js";
 
 export async function rentalsValidation (req,res, next){
 
-    const info = req.body;
-    console.log("info", info)
+    const { customerId, gameId, daysRented } = req.body;
 
-    const {error} = rentalJoiSchema.validate(info, {abortEarly: false});
-
-    if(error){
-        const errors = error.details.map(detail => detail.message);
-        return res.status(422).send(errors);
-    } 
-
-    const customerExist = await connectionDB.query("SELECT * FROM customers WHERE id=$1;", 
-    [info.customerId]); //verificando se o cliente existe
-
-    if (customerExist.rowCount === 0){
+    try {
+      const game = await connectionDB.query("SELECT * FROM games WHERE id=$1", [
+        gameId,
+      ]);
+  
+      if (game.rowCount === 0) {
         return res.sendStatus(400);
-    }
-
-    const gameExist = await connectionDB.query("SELECT * FROM games WHERE id=$1;", 
-    [info.gameId]); //verificando se o jogo existe
-
-    if(gameExist.rowCount === 0){
+      }
+  
+      const rental = {
+        customerId,
+        gameId,
+        daysRented,
+        rentDate: new Date(),
+        originalPrice: daysRented * game.rows[0].pricePerDay,
+        returnDate: null,
+        delayFee: null,
+      };
+  
+      const { error } = rentalJoiSchema.validate(rental, { abortEarly: false });
+  
+      if (error) {
+        const errors = error.details.map((detail) => detail.message);
+        return res.status(400).send({ errors });
+      }
+  
+      const customerIdExists = await connectionDB.query(
+        "SELECT * FROM customers WHERE id=$1",
+        [customerId]
+      );
+  
+      if (customerIdExists.rowCount === 0) {
         return res.sendStatus(400);
+      }
+  
+      res.locals.rental = rental;
+      res.locals.game = game;
+      next();
+    } catch (err) {
+      res.status(500).send(err.message);
     }
-
-    const gameRentals = await connectionDB.query('SELECT * FROM rentals WHERE "gameId"=$1;',
-    [info.gameId]); //verificando se tem disponibilidade do jogo
-
-    //VERIFICAR SE ESSA PARTE É === OU < 
-
-    if(gameRentals >= gameExist.rows[0].stockTotal){
+  }
+  
+  export async function gamesAvailableInStock(req, res, next) {
+    const game = res.locals.game;
+  
+    try {
+      const rentals = await connectionDB.query(
+        `SELECT * FROM rentals WHERE "gameId"=$1`,
+        [game.rows[0].id]
+      );
+  
+      console.log(rentals.rows.length);
+  
+      if (rentals.rows.length > game.rows[0].stockTotal) {
         return res.sendStatus(400);
+      }
+  
+      next();
+    } catch (err) {
+      res.status(500).send(err.message);
     }
-
-    req.info = info;
-
-    next()
-}
+  }
+  

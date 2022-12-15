@@ -1,134 +1,139 @@
 import { connectionDB } from "../database/db.js";
-import dayjs from "dayjs"
 
 export async function getRentals(req, res) {
 
-    const { customerId, gameId } = req.params;
+    const { customerId, gameId } = req.query;
 
-    const allRentals = `
-        SELECT 
-            rentals.*,
-        ROW_TO_JSON
-            (customers.*) AS customer, 
-        JSON_BUILD_OBJECT(
-            'id',games.id,
-            'name',games.name,
-            'categoryId',games."categoryId",
-            'categoryName',categories.name
-            ) AS game 
-        FROM 
-            rentals
-        JOIN 
-            customers
-        ON 
-            customers.id ="customerId"
-        JOIN 
-            games 
-        ON 
-            games.id = "gameId" 
-        JOIN 
-            categories 
-        ON 
-            categories.id = games."categoryId"
-        `
+  const queryGlobal = `
+    SELECT rentals.*, 
+        customers.id AS "idCustomer", 
+        customers.name AS "customerName", 
+        games.id AS "idGame", 
+        games.name AS "gameName",
+        games."categoryId",
+        categories.name AS "categoryName"
+    FROM
+        rentals
+    JOIN
+        customers
+    ON
+        rentals."customerId" = customers.id
+    JOIN
+        games
+    ON
+        games.id = rentals."gameId"
+    JOIN
+        categories
+    ON
+        categories.id = games."categoryId"
+  `;
 
-    try {
-        if (customerId && gameId) {
-            const data = await connectionDB.query(`
-                ${allRentals}
-                WHERE
-                    "customerId"=$1, gameId=$2
-            `, [customerId, gameId]);
+  try {
+    const { rows } = customerId
+      ? await connectionDB.query(queryGlobal + 'WHERE "customerId"=$1', [
+          Number(customerId),
+        ])
+      : gameId
+      ? await connectionDB.query(queryGlobal + 'WHERE "gameId"=$1', [
+          Number(gameId),
+        ])
+      : await connectionDB.query(queryGlobal);
 
-            return res.send(data.rows);
-
-        } else if (customerId && !gameId) {
-
-            const data = await connectionDB.query(`
-                ${allRentals}
-                WHERE
-                    "customerId"=$1
-            `, [customerId]);
-
-            return res.send(data.rows);
-
-        } else if (!customerId && gameId) {
-
-            const data = await connectionDB.query(`
-                ${allRentals}
-                WHERE
-                    "gameId"=$1
-            `, [gameId]);
-
-            return res.send(data.rows);
-
-        } else {
-
-            const data = await connectionDB.query(`${allRentals}`);
-            return res.send(data.rows);
-
-        }
-    }
-    catch (err) {
-        console.log("err getRentals", err.message);
-        res.status(500).send('Server not running');
-    }
-
-};
+    res.send(rows);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+}
 
 export async function postRentals(req, res) {
 
-    const { customerId, gameId, daysRented } = req.info;
-    const day = dayjs().format("YYYY-MM-DD");
-
-    try {
-
-        const gameValuePerDay = await connectionDB.query('SELECT "pricePerDay" FROM games WHERE id=$1', [gameId]);
-        const rentAmount = Number(gameValuePerDay.rows[0].pricePerDay) * Number(daysRented);
-
-        await connectionDB.query(`
-        INSERT INTO 
-            rentals ("customerId", "gameId", "daysRented", "returnDate", "delayFee", "originalPrice", "rentDate") 
-        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [customerId, gameId, daysRented, null, null, rentAmount, day]);
-
-        return res.sendStatus(201);
-
-    } catch (err) {
-        console.log("err postRentals", err.message);
-        return res.status(500).send('Server not running');
+    const {
+        customerId,
+        gameId,
+        daysRented,
+        rentDate,
+        originalPrice,
+        returnDate,
+        delayFee,
+      } = res.locals.rental;
+    
+      try {
+        await connectionDB.query(
+          `INSERT INTO rentals ("customerId","gameId","daysRented", "rentDate", "originalPrice", "returnDate", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            customerId,
+            gameId,
+            daysRented,
+            rentDate,
+            originalPrice,
+            returnDate,
+            delayFee,
+          ]
+        );
+    
+        res.sendStatus(201);
+      } catch (err) {
+        res.status(500).send(err.message);
+      }
     }
-
-};
 
 export async function postFinishedRentals(req, res) {
-    console.log("CHEGUEI AQUI!!!!!!!!!!!!!!!!!!!")
-    const { daysOfDelay, id } = req.info;
-    console.log("daysOf", daysOfDelay, id)
-    const day = dayjs().format("YYYY-MM-DD");
+    const { id } = req.params;
 
     try {
-
-        await connectionDB.query('UPDATE rentals SET "returnDate"=$1, "delayFee"=$2 WHERE id=$3;',
-            [day, daysOfDelay, id]);
-        res.sendStatus(201);
-
+      const result = await connectionDB.query(
+        "SELECT * FROM rentals WHERE id=$1",
+        [id]
+      );
+  
+      const rental = result.rows[0];
+  
+      if (result.rowCount === 0) return res.sendStatus(404);
+      if (rental.returnDate) return res.sendStatus(400);
+  
+      const diffInTime =
+        new Date().getTime() - new Date(rental.rentDate).getTime();
+      const diffInDays = Math.floor(diffInTime / (24 * 3600 * 1000));
+  
+      let delayFee = 0;
+      if (diffInDays > rental.daysRented) {
+        const addicionalDays = diffInDays - rental.daysRented;
+        delayFee = addicionalDays * rental.originalPrice;
+      }
+  
+      await connectionDB.query(
+        `
+          UPDATE rentals
+          SET "returnDate" = NOW(), "delayFee" = $1
+          WHERE id=$2
+       `,
+        [delayFee, id]
+      );
+  
+      res.sendStatus(200);
     } catch (err) {
-        console.log("err postRentals", err.message);
-        res.status(500).send('Server not running');
+      res.status(500).send(err.message);
     }
-};
+  }
 
 export async function deleteRentals(req, res){
 
-    const {id} = req.params;
+    const { id } = req.params;
 
-    try {
-        await connectionDB.query('DELETE FROM rentals WHERE id=$1;', [id]);
-        res.sendStatus(200);
+  try {
+    const result = await connectionDB.query(
+      "SELECT * FROM rentals WHERE id=$1",
+      [id]
+    );
 
-    } catch (err){
-        console.log("err deleteRentals", err.message);
-        res.status(500).send('Server not running');
-    }
+    const rental = result.rows[0];
+
+    if (result.rowCount === 0) return res.sendStatus(404);
+    if (!rental.returnDate) return res.sendStatus(400);
+
+    await connectionDB.query("DELETE FROM rentals WHERE id=$1", [id]);
+    res.sendStatus(200);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
 }

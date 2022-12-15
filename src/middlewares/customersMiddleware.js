@@ -5,8 +5,6 @@ import joi from "joi";
 export async function postCustomerValidation(req, res, next){
     const info = req.body;
 
-    console.log("info", info);
-
     const {error} = customerJoiSchema.validate(info, {abortEarly: false});
 
     if(error){
@@ -18,17 +16,6 @@ export async function postCustomerValidation(req, res, next){
 
     if(cpfExist.rowCount > 0){
         return res.sendStatus(409)
-    }
-
-    const day = joi.date();
-
-    //VERIFICAR O MOTIVO DE COM DATAS ANTIGAS, NÃO FUNCIONAR
-
-    try {
-        joi.attempt(info.birthday, day);
-    } catch(err) {
-        console.log("err day", err);
-        return res.sendStatus(400);
     }
 
     req.info = info;

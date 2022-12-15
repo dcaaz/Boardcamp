@@ -8,14 +8,14 @@ export async function getGames(req, res) {
         if (name) {
             const existGame = await connectionDB.query(`
             SELECT 
-                games.id, games.name, games.image, games."stockTotal", games."pricePerDay", 
+                games.*,
                 categories.name AS "categoryName"
             FROM 
                 games 
             JOIN
                 categories
             ON
-                games."categoryId"=categories.id          
+                games."categoryId" = categories.id          
             WHERE 
                 games.name
             ILIKE 
@@ -31,14 +31,14 @@ export async function getGames(req, res) {
         } else {
             const allGames = await connectionDB.query(`
             SELECT 
-                games.id, games.name, games.image, games."stockTotal", games."pricePerDay", 
+                games.*, 
                 categories.name AS "categoryName"
             FROM 
                 games 
             JOIN
                 categories
             ON
-                games."categoryId"=categories.id`
+                games."categoryId" = categories.id`
             );
             res.send(allGames.rows);
         }
